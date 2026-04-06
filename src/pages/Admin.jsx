@@ -78,6 +78,10 @@ export default function Admin() {
       })
       if (res.ok) {
         setAuthed(true)
+      } else if (res.status === 404) {
+        setAuthError(
+          'API not found. Use npm run dev with the backend running, or start the server on port 3001.'
+        )
       } else {
         setAuthError('Invalid password. Try again.')
       }

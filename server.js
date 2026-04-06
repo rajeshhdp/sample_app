@@ -1,13 +1,16 @@
+import dotenv from 'dotenv'
 import express from 'express'
 import cors from 'cors'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import Anthropic from '@anthropic-ai/sdk'
-import { YoutubeTranscript } from 'youtube-transcript'
+import { fetchTranscript } from 'youtube-transcript/dist/youtube-transcript.esm.js'
 import { nanoid } from 'nanoid'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: resolve(__dirname, '.env') })
+
 const DB_PATH = resolve(__dirname, 'db.json')
 const PORT = process.env.PORT || 3001
 
@@ -39,11 +42,14 @@ function extractYoutubeId(url) {
   return null
 }
 
+function getAdminPassword() {
+  return (process.env.ADMIN_PASSWORD || 'hare_krishna').trim()
+}
+
 // Admin auth middleware
 function requireAdmin(req, res, next) {
-  const password = req.headers['x-admin-password']
-  const adminPassword = process.env.ADMIN_PASSWORD || 'hare_krishna'
-  if (password !== adminPassword) {
+  const password = String(req.headers['x-admin-password'] ?? '').trim()
+  if (password !== getAdminPassword()) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
   next()
@@ -129,7 +135,7 @@ app.post('/api/generate-quiz', requireAdmin, async (req, res) => {
   // Fetch transcript
   let transcript
   try {
-    const transcriptItems = await YoutubeTranscript.fetchTranscript(youtubeId)
+    const transcriptItems = await fetchTranscript(youtubeId)
     const fullText = transcriptItems.map(t => t.text).join(' ')
     // Trim to ~3000 words
     const words = fullText.split(/\s+/)
@@ -222,9 +228,9 @@ app.post('/api/responses', (req, res) => {
 
 // Admin login check
 app.post('/api/admin/login', (req, res) => {
-  const { password } = req.body
-  const adminPassword = process.env.ADMIN_PASSWORD || 'hare_krishna'
-  if (password === adminPassword) {
+  const password =
+    typeof req.body?.password === 'string' ? req.body.password.trim() : ''
+  if (password === getAdminPassword()) {
     res.json({ success: true })
   } else {
     res.status(401).json({ error: 'Invalid password' })

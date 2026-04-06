@@ -137,6 +137,17 @@ export default function Quiz() {
               <p className="text-sm text-amber-800">
                 🎬 Watch the video above, then answer the questions below.
               </p>
+              <p className="text-xs text-amber-700 mt-2">
+                If the video doesn't load,{' '}
+                <a
+                  href={`https://www.youtube.com/watch?v=${quiz.youtubeId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-amber-900"
+                >
+                  watch it on YouTube
+                </a>
+              </p>
             </div>
 
             {quiz.questions.map((q, i) => (

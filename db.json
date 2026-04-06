@@ -1,4 +1,86 @@
 {
-  "quizzes": [],
-  "responses": []
+  "quizzes": [
+    {
+      "id": "GTlaPA3tO4",
+      "title": "BG Quiz",
+      "youtubeUrl": "https://youtu.be/wKIPEtq2P68?si=_tq9g6ZFT3_-4p1G",
+      "youtubeId": "wKIPEtq2P68",
+      "questions": [
+        {
+          "question": "According to Srila Prabhupada's explanation in this lecture, what is the relationship between Krishna and His expansions?",
+          "options": [
+            "Krishna's expansions are inferior and separate from Krishna",
+            "Krishna's expansions are as good as Krishna Himself",
+            "Krishna's expansions are completely different entities with no connection to Krishna",
+            "Krishna's expansions gradually lose their power and potency"
+          ],
+          "correct": 1,
+          "explanation": "Prabhupada states that Krishna's original expansions are 'as good as Krishna,' establishing that they are not diminished versions but equal manifestations of the Supreme Lord, similar to how a manager expands through secretaries and personal representatives."
+        },
+        {
+          "question": "In Prabhupada's analogy about creation, what is the role of Maya (the material energy)?",
+          "options": [
+            "Maya is the active creator who independently produces the material world",
+            "Maya is like a husband who seeds the material creation",
+            "Maya is like a mother who receives the seed from Krishna and develops the material bodies",
+            "Maya is purely illusion with no actual creative function"
+          ],
+          "correct": 2,
+          "explanation": "Prabhupada compares the creative process to reproduction: 'the father is seeding and the mother is receiving this seed and then she's impregnated.' Here, Krishna is the father (seeding) and Maya (the material energy) is the mother (receiving and impregnating), just as in physical creation."
+        },
+        {
+          "question": "What is Prabhupada's main criticism of the scientific Big Bang theory of creation as presented in this lecture?",
+          "options": [
+            "The Big Bang theory is completely accurate and requires no modification",
+            "Scientists cannot explain how a 'chunk' automatically explodes into creation without a conscious cause or manager behind it",
+            "The Big Bang theory contradicts the Vedas but is scientifically proven",
+            "Matter can automatically expand and organize itself without any living energy involved"
+          ],
+          "correct": 1,
+          "explanation": "Prabhupada repeatedly challenges the notion that a chunk can expand automatically, asking what caused the chunk and how matter can act without being touched or guided by a living entity. He points out that 'we have experience that matter do not act automatically' without guidance from consciousness."
+        },
+        {
+          "question": "According to Prabhupada's teaching, what is the fundamental difference between how the spiritual world and material world are managed?",
+          "options": [
+            "The spiritual world has no management or superintendence",
+            "The material world is managed by different personalities than the spiritual world",
+            "Both are managed by the same Supreme personality, though called by different names in each realm",
+            "The material world is self-managing without any need for superintendence"
+          ],
+          "correct": 2,
+          "explanation": "Prabhupada explains: 'the spiritual sh is the Supreme manager and so the material world is concern the same is the supreme but his name is the spiritual world the name is and the material world the Supreme superintend is also the same but name different.' The same Supreme power manages both realms."
+        },
+        {
+          "question": "What does Prabhupada use as evidence that matter cannot act automatically without the direction of a conscious living entity?",
+          "options": [
+            "Theoretical calculations from modern physics",
+            "Our direct experience: matter does not act or develop without being touched and guided by living beings",
+            "Ancient Vedic texts alone without any experiential basis",
+            "Scientific laboratory experiments with inanimate objects"
+          ],
+          "correct": 1,
+          "explanation": "Prabhupada appeals to practical experience and observation, stating 'we have experience that matter do not act automatically without being touched by living' force. He also gives the example that children develop in the womb through the mother's living energy, not automatically, and this principle applies universally to all creation."
+        }
+      ],
+      "createdAt": "2026-04-05T21:27:08.335Z"
+    }
+  ],
+  "responses": [
+    {
+      "id": "V62UP8oU6m",
+      "quizId": "GTlaPA3tO4",
+      "name": "Rajesh",
+      "answers": [
+        1,
+        2,
+        1,
+        2,
+        1
+      ],
+      "score": 5,
+      "totalQuestions": 5,
+      "timeTakenSeconds": 74,
+      "submittedAt": "2026-04-05T21:28:34.603Z"
+    }
+  ]
 }
