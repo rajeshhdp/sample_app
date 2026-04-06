@@ -28,9 +28,12 @@ async function fetchTracksFromUrl(captionUrl) {
 async function fetchViaInnerTube(videoId) {
   const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT },
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14)',
+    },
     body: JSON.stringify({
-      context: { client: { clientName: 'WEB', clientVersion: '2.20240101' } },
+      context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38' } },
       videoId,
     }),
   })
