@@ -4,17 +4,20 @@ import { extractYoutubeId, checkAdmin } from './_db.js'
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36,gzip(gfe)'
 
+function decodeEntities(s) {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+}
+
 function parseTranscriptXml(xml) {
-  return [...xml.matchAll(/<text[^>]*>([^<]*)<\/text>/g)]
-    .map(m =>
-      m[1]
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .trim()
-    )
+  // Handles both <text> (legacy) and <p> (timedtext format 3) tags
+  const matches = [...xml.matchAll(/<(?:text|p)[^>]*>([\s\S]*?)<\/(?:text|p)>/g)]
+  return matches
+    .map(m => decodeEntities(m[1].replace(/<[^>]+>/g, '')).trim())
     .filter(Boolean)
     .join(' ')
 }
@@ -26,17 +29,22 @@ async function fetchTracksFromUrl(captionUrl) {
 }
 
 async function fetchViaInnerTube(videoId) {
-  const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14)',
-    },
-    body: JSON.stringify({
-      context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38' } },
-      videoId,
-    }),
-  })
+  const res = await fetch(
+    'https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14)',
+        'X-YouTube-Client-Name': '3',
+        'X-YouTube-Client-Version': '20.10.38',
+      },
+      body: JSON.stringify({
+        context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38', androidSdkVersion: 34 } },
+        videoId,
+      }),
+    }
+  )
   if (!res.ok) return null
 
   const data = await res.json()
