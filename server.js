@@ -30,6 +30,42 @@ function writeDB(data) {
   writeFileSync(DB_PATH, JSON.stringify(data, null, 2))
 }
 
+// Robustly extract a JSON array from Claude's response using bracket matching.
+// A greedy regex like /\[[\s\S]*\]/ breaks when explanation text contains ']'.
+function extractJsonArray(text) {
+  // Strip markdown code fences if present
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '')
+
+  // Try direct parse first (Claude returned clean JSON)
+  try {
+    const parsed = JSON.parse(stripped)
+    if (Array.isArray(parsed)) return normalizeQuestions(parsed)
+  } catch { /* fall through */ }
+
+  // Find the outermost [ ... ] using balanced bracket counting
+  const start = stripped.indexOf('[')
+  if (start === -1) throw new Error('No JSON array found in AI response')
+
+  let depth = 0
+  let end = -1
+  for (let i = start; i < stripped.length; i++) {
+    if (stripped[i] === '[') depth++
+    else if (stripped[i] === ']') {
+      depth--
+      if (depth === 0) { end = i; break }
+    }
+  }
+
+  if (end === -1) throw new Error('Malformed JSON array in AI response')
+  const parsed = JSON.parse(stripped.slice(start, end + 1))
+  return normalizeQuestions(parsed)
+}
+
+// Ensure `correct` is always a number (Claude sometimes returns "0" as a string)
+function normalizeQuestions(questions) {
+  return questions.map(q => ({ ...q, correct: parseInt(q.correct, 10) }))
+}
+
 function extractYoutubeId(url) {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
@@ -84,25 +120,30 @@ app.get('/api/quizzes/:id', (req, res) => {
 
 // POST /api/quizzes — save new quiz (admin only)
 app.post('/api/quizzes', requireAdmin, (req, res) => {
-  const { title, youtubeUrl, questions } = req.body
-  if (!title || !youtubeUrl || !questions) {
-    return res.status(400).json({ error: 'Missing required fields' })
-  }
-  const youtubeId = extractYoutubeId(youtubeUrl)
-  if (!youtubeId) return res.status(400).json({ error: 'Invalid YouTube URL' })
+  try {
+    const { title, youtubeUrl, questions } = req.body
+    if (!title || !youtubeUrl || !questions) {
+      return res.status(400).json({ error: 'Missing required fields' })
+    }
+    const youtubeId = extractYoutubeId(youtubeUrl)
+    if (!youtubeId) return res.status(400).json({ error: 'Invalid YouTube URL' })
 
-  const db = readDB()
-  const quiz = {
-    id: nanoid(10),
-    title,
-    youtubeUrl,
-    youtubeId,
-    questions,
-    createdAt: new Date().toISOString()
+    const db = readDB()
+    const quiz = {
+      id: nanoid(10),
+      title,
+      youtubeUrl,
+      youtubeId,
+      questions,
+      createdAt: new Date().toISOString()
+    }
+    db.quizzes.push(quiz)
+    writeDB(db)
+    res.status(201).json(quiz)
+  } catch (err) {
+    console.error('Save quiz error:', err)
+    res.status(500).json({ error: 'Failed to save quiz: ' + err.message })
   }
-  db.quizzes.push(quiz)
-  writeDB(db)
-  res.status(201).json(quiz)
 })
 
 // PUT /api/quizzes/:id — update quiz (admin only)
@@ -172,10 +213,7 @@ app.post('/api/generate-quiz', requireAdmin, async (req, res) => {
     })
 
     const content = message.content[0].text.trim()
-    // Extract JSON from response
-    const jsonMatch = content.match(/\[[\s\S]*\]/)
-    if (!jsonMatch) throw new Error('Invalid response format')
-    const questions = JSON.parse(jsonMatch[0])
+    const questions = extractJsonArray(content)
     res.json({ questions, youtubeId })
   } catch (err) {
     console.error('Claude API error:', err)

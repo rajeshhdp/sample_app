@@ -146,6 +146,38 @@ async function fetchYouTubeTranscript(videoId) {
   return await fetchViaWebPage(videoId)
 }
 
+// Robustly extract a JSON array using balanced bracket matching.
+// A greedy regex like /\[[\s\S]*\]/ breaks when explanation text contains ']'.
+function extractJsonArray(text) {
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '')
+
+  try {
+    const parsed = JSON.parse(stripped)
+    if (Array.isArray(parsed)) return normalizeQuestions(parsed)
+  } catch { /* fall through */ }
+
+  const start = stripped.indexOf('[')
+  if (start === -1) throw new Error('No JSON array found in AI response')
+
+  let depth = 0
+  let end = -1
+  for (let i = start; i < stripped.length; i++) {
+    if (stripped[i] === '[') depth++
+    else if (stripped[i] === ']') {
+      depth--
+      if (depth === 0) { end = i; break }
+    }
+  }
+
+  if (end === -1) throw new Error('Malformed JSON array in AI response')
+  return normalizeQuestions(JSON.parse(stripped.slice(start, end + 1)))
+}
+
+// Ensure `correct` is always a number (Claude sometimes returns "0" as a string)
+function normalizeQuestions(questions) {
+  return questions.map(q => ({ ...q, correct: parseInt(q.correct, 10) }))
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
@@ -195,9 +227,7 @@ export default async function handler(req, res) {
     })
 
     const content = message.content[0].text.trim()
-    const jsonMatch = content.match(/\[[\s\S]*\]/)
-    if (!jsonMatch) throw new Error('Invalid response format from AI')
-    const questions = JSON.parse(jsonMatch[0])
+    const questions = extractJsonArray(content)
     res.json({ questions, youtubeId })
   } catch (err) {
     res.status(500).json({ error: 'Failed to generate quiz: ' + err.message })

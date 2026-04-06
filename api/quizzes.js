@@ -32,25 +32,30 @@ export default function handler(req, res) {
   // POST /api/quizzes
   if (method === 'POST') {
     if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
-    const { title, youtubeUrl, questions } = req.body || {}
-    if (!title || !youtubeUrl || !questions) {
-      return res.status(400).json({ error: 'Missing required fields' })
-    }
-    const youtubeId = extractYoutubeId(youtubeUrl)
-    if (!youtubeId) return res.status(400).json({ error: 'Invalid YouTube URL' })
+    try {
+      const { title, youtubeUrl, questions } = req.body || {}
+      if (!title || !youtubeUrl || !questions) {
+        return res.status(400).json({ error: 'Missing required fields' })
+      }
+      const youtubeId = extractYoutubeId(youtubeUrl)
+      if (!youtubeId) return res.status(400).json({ error: 'Invalid YouTube URL' })
 
-    const db = readDB()
-    const quiz = {
-      id: nanoid(10),
-      title,
-      youtubeUrl,
-      youtubeId,
-      questions,
-      createdAt: new Date().toISOString()
+      const db = readDB()
+      const quiz = {
+        id: nanoid(10),
+        title,
+        youtubeUrl,
+        youtubeId,
+        questions,
+        createdAt: new Date().toISOString()
+      }
+      db.quizzes.push(quiz)
+      writeDB(db)
+      return res.status(201).json(quiz)
+    } catch (err) {
+      console.error('Save quiz error:', err)
+      return res.status(500).json({ error: 'Failed to save quiz: ' + err.message })
     }
-    db.quizzes.push(quiz)
-    writeDB(db)
-    return res.status(201).json(quiz)
   }
 
   // PUT /api/quizzes/:id
