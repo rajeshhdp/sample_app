@@ -104,7 +104,9 @@ export default function Admin() {
         },
         body: JSON.stringify({ youtubeUrl })
       })
-      const data = await res.json()
+      const text = await res.text()
+      let data
+      try { data = JSON.parse(text) } catch { throw new Error(`Server error (${res.status})`) }
       if (!res.ok) throw new Error(data.error || 'Generation failed')
       setQuestions(data.questions)
     } catch (err) {
