@@ -2,6 +2,150 @@ import Anthropic from '@anthropic-ai/sdk'
 import { fetchTranscript } from 'youtube-transcript/dist/youtube-transcript.esm.js'
 import { extractYoutubeId, checkAdmin } from './_db.js'
 
+const USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36,gzip(gfe)'
+const ANDROID_USER_AGENT = 'com.google.android.youtube/20.10.38 (Linux; U; Android 14)'
+const INNER_TUBE_URL = 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false'
+
+function decodeEntities(s) {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+}
+
+function parseTranscriptXml(xml) {
+  const lines = []
+  const regex = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g
+  let match
+
+  while ((match = regex.exec(xml)) !== null) {
+    let text = match[3]
+    let segment = ''
+    const segmentRegex = /<s[^>]*>([^<]*)<\/s>/g
+    let segmentMatch
+    while ((segmentMatch = segmentRegex.exec(text)) !== null) {
+      segment += segmentMatch[1]
+    }
+    if (!segment) {
+      segment = text.replace(/<[^>]+>/g, '')
+    }
+    segment = decodeEntities(segment).trim()
+    if (segment) lines.push(segment)
+  }
+
+  if (lines.length > 0) return lines
+
+  const legacy = []
+  const legacyRegex = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g
+  while ((match = legacyRegex.exec(xml)) !== null) {
+    legacy.push(decodeEntities(match[3]))
+  }
+  return legacy
+}
+
+async function fetchViaInnerTube(videoId) {
+  const res = await fetch(INNER_TUBE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': ANDROID_USER_AGENT,
+    },
+    body: JSON.stringify({
+      context: {
+        client: {
+          clientName: 'ANDROID',
+          clientVersion: '20.10.38',
+          androidSdkVersion: 34,
+        },
+      },
+      videoId,
+    }),
+  })
+  if (!res.ok) return null
+
+  const json = await res.json()
+  const tracks = json?.captions?.playerCaptionsTracklistRenderer?.captionTracks
+  if (!Array.isArray(tracks) || tracks.length === 0) return null
+
+  return fetchTranscriptFromTrack(tracks[0].baseUrl)
+}
+
+async function fetchViaWebPage(videoId) {
+  const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    headers: {
+      'User-Agent': USER_AGENT,
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+  })
+  if (!res.ok) throw new Error('Could not load YouTube page')
+
+  const html = await res.text()
+  if (html.includes('class="g-recaptcha"')) {
+    throw new Error('YouTube is requiring a captcha — try again later')
+  }
+
+  const marker = 'var ytInitialPlayerResponse = '
+  const start = html.indexOf(marker)
+  if (start === -1) throw new Error('Could not parse YouTube page')
+
+  let depth = 0
+  let i = start + marker.length
+  let jsonStart = i
+  for (; i < html.length; i++) {
+    if (html[i] === '{') depth++
+    else if (html[i] === '}') {
+      depth--
+      if (depth === 0) break
+    }
+  }
+
+  const playerData = JSON.parse(html.slice(jsonStart, i + 1))
+  const tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks
+  if (!Array.isArray(tracks) || tracks.length === 0) {
+    throw new Error('No captions available for this video')
+  }
+
+  return fetchTranscriptFromTrack(tracks[0].baseUrl)
+}
+
+async function fetchTranscriptFromTrack(url) {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': USER_AGENT,
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+  })
+  if (!res.ok) throw new Error('Failed to download transcript data')
+  const xml = await res.text()
+  const lines = parseTranscriptXml(xml)
+  if (!Array.isArray(lines) || lines.length === 0) {
+    throw new Error('Transcript XML could not be parsed')
+  }
+  return lines
+}
+
+async function fetchYouTubeTranscript(videoId) {
+  try {
+    const transcriptItems = await fetchTranscript(videoId, { lang: 'en' })
+    if (Array.isArray(transcriptItems) && transcriptItems.length > 0) {
+      return transcriptItems.map(item => item.text)
+    }
+  } catch (err) {
+    console.warn('[generate-quiz] youtube-transcript failed:', err.message)
+  }
+
+  const innerTubeTranscript = await fetchViaInnerTube(videoId)
+  if (innerTubeTranscript && innerTubeTranscript.length > 0) {
+    return innerTubeTranscript
+  }
+
+  return await fetchViaWebPage(videoId)
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
@@ -14,11 +158,8 @@ export default async function handler(req, res) {
 
   let transcript
   try {
-    const transcriptItems = await fetchTranscript(youtubeId)
-    if (!Array.isArray(transcriptItems) || transcriptItems.length === 0) {
-      throw new Error('No captions available for this video')
-    }
-    transcript = transcriptItems.map(item => item.text).join(' ')
+    const transcriptItems = await fetchYouTubeTranscript(youtubeId)
+    transcript = transcriptItems.join(' ')
   } catch (err) {
     return res.status(422).json({
       error: `Could not fetch transcript: ${err.message}. Please ensure the video has captions enabled.`,
