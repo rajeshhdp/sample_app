@@ -150,7 +150,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
 
-  const { youtubeUrl } = req.body || {}
+  const { youtubeUrl, transcriptText } = req.body || {}
   if (!youtubeUrl) return res.status(400).json({ error: 'YouTube URL required' })
 
   const youtubeId = extractYoutubeId(youtubeUrl)
@@ -158,11 +158,15 @@ export default async function handler(req, res) {
 
   let transcript
   try {
-    const transcriptItems = await fetchYouTubeTranscript(youtubeId)
-    transcript = transcriptItems.join(' ')
+    if (typeof transcriptText === 'string' && transcriptText.trim().length > 0) {
+      transcript = transcriptText.trim()
+    } else {
+      const transcriptItems = await fetchYouTubeTranscript(youtubeId)
+      transcript = transcriptItems.join(' ')
+    }
   } catch (err) {
     return res.status(422).json({
-      error: `Could not fetch transcript: ${err.message}. Please ensure the video has captions enabled.`,
+      error: `Could not fetch transcript: ${err.message}. Please ensure the video has captions enabled or provide transcript text manually.`,
     })
   }
 

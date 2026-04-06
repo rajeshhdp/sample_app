@@ -58,6 +58,7 @@ export default function Admin() {
 
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [title, setTitle] = useState('')
+  const [manualTranscript, setManualTranscript] = useState('')
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
 
@@ -102,7 +103,10 @@ export default function Admin() {
           'Content-Type': 'application/json',
           'x-admin-password': password
         },
-        body: JSON.stringify({ youtubeUrl })
+        body: JSON.stringify({
+          youtubeUrl,
+          transcriptText: manualTranscript.trim() || undefined
+        })
       })
       const text = await res.text()
       let data
@@ -220,17 +224,35 @@ export default function Admin() {
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
         {/* YouTube URL */}
-        <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
-          <label className="text-xs font-semibold text-orange-600 uppercase tracking-wide block mb-2">
-            YouTube Video URL
-          </label>
-          <input
-            type="url"
-            placeholder="https://www.youtube.com/watch?v=..."
-            value={youtubeUrl}
-            onChange={e => setYoutubeUrl(e.target.value)}
-            className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400"
-          />
+        <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5 space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-orange-600 uppercase tracking-wide block mb-2">
+              YouTube Video URL
+            </label>
+            <input
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=..."
+              value={youtubeUrl}
+              onChange={e => setYoutubeUrl(e.target.value)}
+              className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-orange-600 uppercase tracking-wide block mb-2">
+              Transcript text (optional)
+            </label>
+            <textarea
+              rows={6}
+              placeholder="Paste transcript text here if captions are unavailable"
+              value={manualTranscript}
+              onChange={e => setManualTranscript(e.target.value)}
+              className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400 resize-none"
+            />
+            <p className="text-xs text-gray-400 mt-2">
+              If you provide transcript text, it will be used instead of fetching captions.
+            </p>
+          </div>
         </div>
 
         {/* Generate button */}
