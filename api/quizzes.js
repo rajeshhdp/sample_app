@@ -1,13 +1,13 @@
 import { nanoid } from 'nanoid'
 import { readDB, writeDB, extractYoutubeId, checkAdmin } from './_db.js'
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const { method } = req
   const id = req.query?.id
 
   // GET /api/quizzes or /api/quizzes/:id
   if (method === 'GET') {
-    const db = readDB()
+    const db = await readDB()
     if (id) {
       const quiz = db.quizzes.find(q => q.id === id)
       if (!quiz) return res.status(404).json({ error: 'Quiz not found' })
@@ -40,7 +40,7 @@ export default function handler(req, res) {
       const youtubeId = extractYoutubeId(youtubeUrl)
       if (!youtubeId) return res.status(400).json({ error: 'Invalid YouTube URL' })
 
-      const db = readDB()
+      const db = await readDB()
       const quiz = {
         id: nanoid(10),
         title,
@@ -50,7 +50,7 @@ export default function handler(req, res) {
         createdAt: new Date().toISOString()
       }
       db.quizzes.push(quiz)
-      writeDB(db)
+      await writeDB(db)
       return res.status(201).json(quiz)
     } catch (err) {
       console.error('Save quiz error:', err)
@@ -61,22 +61,30 @@ export default function handler(req, res) {
   // PUT /api/quizzes/:id
   if (method === 'PUT') {
     if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
-    const db = readDB()
-    const idx = db.quizzes.findIndex(q => q.id === id)
-    if (idx === -1) return res.status(404).json({ error: 'Quiz not found' })
-    db.quizzes[idx] = { ...db.quizzes[idx], ...req.body, id }
-    writeDB(db)
-    return res.json(db.quizzes[idx])
+    try {
+      const db = await readDB()
+      const idx = db.quizzes.findIndex(q => q.id === id)
+      if (idx === -1) return res.status(404).json({ error: 'Quiz not found' })
+      db.quizzes[idx] = { ...db.quizzes[idx], ...req.body, id }
+      await writeDB(db)
+      return res.json(db.quizzes[idx])
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to update quiz: ' + err.message })
+    }
   }
 
   // DELETE /api/quizzes/:id
   if (method === 'DELETE') {
     if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
-    const db = readDB()
-    db.quizzes = db.quizzes.filter(q => q.id !== id)
-    db.responses = db.responses.filter(r => r.quizId !== id)
-    writeDB(db)
-    return res.json({ success: true })
+    try {
+      const db = await readDB()
+      db.quizzes = db.quizzes.filter(q => q.id !== id)
+      db.responses = db.responses.filter(r => r.quizId !== id)
+      await writeDB(db)
+      return res.json({ success: true })
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to delete quiz: ' + err.message })
+    }
   }
 
   res.status(405).json({ error: 'Method not allowed' })

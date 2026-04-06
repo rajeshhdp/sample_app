@@ -1,4 +1,3 @@
-// Simple JSON file database helper for local/serverless use
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -6,18 +5,49 @@ import { fileURLToPath } from 'url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DB_PATH = resolve(__dirname, '../db.json')
 
-export function readDB() {
+// Lazy-initialised KV client — only created when KV_REST_API_URL is present.
+// This lets the same code run locally (file) and on Vercel (KV) without changes.
+let _kv = undefined
+async function getKV() {
+  if (_kv !== undefined) return _kv
+  if (!process.env.KV_REST_API_URL) {
+    _kv = null
+    return null
+  }
+  try {
+    const mod = await import('@vercel/kv')
+    _kv = mod.kv
+  } catch {
+    _kv = null
+  }
+  return _kv
+}
+
+const EMPTY_DB = () => ({ quizzes: [], responses: [] })
+
+export async function readDB() {
+  const kv = await getKV()
+  if (kv) {
+    const data = await kv.get('prabhupada_db')
+    return data || EMPTY_DB()
+  }
+  // Local file fallback
   if (!existsSync(DB_PATH)) {
-    writeFileSync(DB_PATH, JSON.stringify({ quizzes: [], responses: [] }, null, 2))
+    writeFileSync(DB_PATH, JSON.stringify(EMPTY_DB(), null, 2))
   }
   try {
     return JSON.parse(readFileSync(DB_PATH, 'utf8'))
   } catch {
-    return { quizzes: [], responses: [] }
+    return EMPTY_DB()
   }
 }
 
-export function writeDB(data) {
+export async function writeDB(data) {
+  const kv = await getKV()
+  if (kv) {
+    await kv.set('prabhupada_db', data)
+    return
+  }
   writeFileSync(DB_PATH, JSON.stringify(data, null, 2))
 }
 
