@@ -33,8 +33,15 @@ export function extractYoutubeId(url) {
   return null
 }
 
+export function getAdminPassword() {
+  return (process.env.ADMIN_PASSWORD || 'hare_krishna').trim()
+}
+
+export function verifyAdminPassword(password) {
+  return String(password || '').trim() === getAdminPassword()
+}
+
 export function checkAdmin(req) {
   const password = req.headers['x-admin-password']
-  const adminPassword = process.env.ADMIN_PASSWORD || 'hare_krishna'
-  return password === adminPassword
+  return verifyAdminPassword(password)
 }
