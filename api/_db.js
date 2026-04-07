@@ -5,31 +5,36 @@ import { fileURLToPath } from 'url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DB_PATH = resolve(__dirname, '../db.json')
 
-// Lazy-initialised KV client — only created when KV_REST_API_URL is present.
-// This lets the same code run locally (file) and on Vercel (KV) without changes.
-let _kv = undefined
-async function getKV() {
-  if (_kv !== undefined) return _kv
-  if (!process.env.KV_REST_API_URL) {
-    _kv = null
+// Lazy-initialised Redis client.
+// Uses Upstash Redis in production (UPSTASH_REDIS_REST_URL set by Vercel marketplace).
+// Falls back to local db.json file in development.
+let _redis = undefined
+async function getRedis() {
+  if (_redis !== undefined) return _redis
+  if (!process.env.UPSTASH_REDIS_REST_URL) {
+    _redis = null
     return null
   }
   try {
-    const mod = await import('@vercel/kv')
-    _kv = mod.kv
+    const { Redis } = await import('@upstash/redis')
+    _redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    })
   } catch {
-    _kv = null
+    _redis = null
   }
-  return _kv
+  return _redis
 }
 
 const EMPTY_DB = () => ({ quizzes: [], responses: [] })
 
 export async function readDB() {
-  const kv = await getKV()
-  if (kv) {
-    const data = await kv.get('prabhupada_db')
-    return data || EMPTY_DB()
+  const redis = await getRedis()
+  if (redis) {
+    const raw = await redis.get('prabhupada_db')
+    if (!raw) return EMPTY_DB()
+    return typeof raw === 'string' ? JSON.parse(raw) : raw
   }
   // Local file fallback
   if (!existsSync(DB_PATH)) {
@@ -43,9 +48,9 @@ export async function readDB() {
 }
 
 export async function writeDB(data) {
-  const kv = await getKV()
-  if (kv) {
-    await kv.set('prabhupada_db', data)
+  const redis = await getRedis()
+  if (redis) {
+    await redis.set('prabhupada_db', JSON.stringify(data))
     return
   }
   writeFileSync(DB_PATH, JSON.stringify(data, null, 2))
