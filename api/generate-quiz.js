@@ -146,6 +146,31 @@ async function fetchYouTubeTranscript(videoId) {
   return await fetchViaWebPage(videoId)
 }
 
+// Extract { title, questions } from Claude's response.
+// Handles both the new object format and the legacy bare-array format.
+function extractQuizData(text) {
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '')
+
+  try {
+    const start = stripped.indexOf('{')
+    if (start !== -1) {
+      let depth = 0, end = -1
+      for (let i = start; i < stripped.length; i++) {
+        if (stripped[i] === '{') depth++
+        else if (stripped[i] === '}') { depth--; if (depth === 0) { end = i; break } }
+      }
+      if (end !== -1) {
+        const parsed = JSON.parse(stripped.slice(start, end + 1))
+        if (parsed.questions) {
+          return { title: parsed.title || '', questions: normalizeQuestions(parsed.questions) }
+        }
+      }
+    }
+  } catch { /* fall through */ }
+
+  return { title: '', questions: extractJsonArray(stripped) }
+}
+
 // Robustly extract a JSON array using balanced bracket matching.
 // A greedy regex like /\[[\s\S]*\]/ breaks when explanation text contains ']'.
 function extractJsonArray(text) {
@@ -211,24 +236,28 @@ export default async function handler(req, res) {
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2048,
-      system: `You are a Vaishnava education assistant helping devotees understand Srila Prabhupada's teachings. Given this lecture transcript, generate 5 multiple choice questions that test understanding of the key philosophical points, Sanskrit terms used, and practical instructions given. Each question must have 4 options (A, B, C, D) with exactly one correct answer. Return ONLY a valid JSON array in this format:
-[{
-  "question": string,
-  "options": [string, string, string, string],
-  "correct": 0 | 1 | 2 | 3,
-  "explanation": string
-}]`,
+      system: `You are a Vaishnava education assistant helping devotees understand Srila Prabhupada's teachings. Given this lecture transcript, generate a quiz title and 5 multiple choice questions that test understanding of the key philosophical points, Sanskrit terms used, and practical instructions given. Each question must have 4 options (A, B, C, D) with exactly one correct answer. Return ONLY a valid JSON object in this format:
+{
+  "title": string,
+  "questions": [{
+    "question": string,
+    "options": [string, string, string, string],
+    "correct": 0 | 1 | 2 | 3,
+    "explanation": string
+  }]
+}
+The title should be concise (max 60 chars) and describe the main topic of the lecture, e.g. "Bhagavad-gita 2.13 — Transmigration of the Soul".`,
       messages: [
         {
           role: 'user',
-          content: `Here is the transcript of a Srila Prabhupada lecture:\n\n${transcript}\n\nPlease generate 5 quiz questions based on this transcript.`,
+          content: `Here is the transcript of a Srila Prabhupada lecture:\n\n${transcript}\n\nPlease generate a quiz title and 5 quiz questions based on this transcript.`,
         },
       ],
     })
 
     const content = message.content[0].text.trim()
-    const questions = extractJsonArray(content)
-    res.json({ questions, youtubeId })
+    const { title, questions } = extractQuizData(content)
+    res.json({ title, questions, youtubeId })
   } catch (err) {
     res.status(500).json({ error: 'Failed to generate quiz: ' + err.message })
   }
