@@ -11,16 +11,16 @@ const DB_PATH = resolve(__dirname, '../db.json')
 let _redis = undefined
 async function getRedis() {
   if (_redis !== undefined) return _redis
-  if (!process.env.UPSTASH_REDIS_REST_URL) {
+  // Vercel's Upstash Redis integration uses KV_REST_API_URL / KV_REST_API_TOKEN
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) {
     _redis = null
     return null
   }
   try {
     const { Redis } = await import('@upstash/redis')
-    _redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    })
+    _redis = new Redis({ url, token })
   } catch {
     _redis = null
   }
