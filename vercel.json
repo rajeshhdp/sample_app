@@ -5,7 +5,8 @@
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/quizzes/:id",       "destination": "/api/quizzes?id=:id" },
+    { "source": "/api/responses/:quizId", "destination": "/api/responses?quizId=:quizId" },
+    { "source": "/(.*)",                  "destination": "/index.html" }
   ]
 }
