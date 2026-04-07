@@ -200,7 +200,7 @@ export default function Admin() {
             Preview Quiz
           </button>
           <button
-            onClick={() => { setQuestions(null); setTitle(''); setYoutubeUrl(''); setSavedId(null) }}
+            onClick={() => { setQuestions(null); setTitle(''); setYoutubeUrl(''); setManualTranscript(''); setSavedId(null) }}
             className="w-full mt-3 text-sm text-gray-400 hover:text-orange-500"
           >
             Create Another Quiz
@@ -223,8 +223,21 @@ export default function Admin() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
-        {/* YouTube URL */}
+        {/* YouTube URL + Title */}
         <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5 space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-orange-600 uppercase tracking-wide block mb-2">
+              Quiz Title
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Bhagavad-gita Chapter 2 — Sankhya Yoga"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400"
+            />
+          </div>
+
           <div>
             <label className="text-xs font-semibold text-orange-600 uppercase tracking-wide block mb-2">
               YouTube Video URL
@@ -258,7 +271,7 @@ export default function Admin() {
         {/* Generate button */}
         <button
           onClick={handleGenerate}
-          disabled={generating || !youtubeUrl.trim()}
+          disabled={generating || !youtubeUrl.trim() || !title.trim()}
           className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-400 text-white font-bold rounded-xl text-base shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {generating ? (
@@ -280,19 +293,6 @@ export default function Admin() {
         {/* Questions editor */}
         {questions && (
           <>
-            <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
-              <label className="text-xs font-semibold text-orange-600 uppercase tracking-wide block mb-2">
-                Quiz Title
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Bhagavad-gita Chapter 2 — Sankhya Yoga"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400"
-              />
-            </div>
-
             <div>
               <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
                 Review & Edit Questions
