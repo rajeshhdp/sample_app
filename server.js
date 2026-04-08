@@ -176,6 +176,15 @@ app.post('/api/generate-quiz', requireAdmin, async (req, res) => {
   const topic = topicFromPathname(blobPathname)
   const client = new Anthropic({ apiKey })
 
+  const { transcriptText } = req.body
+  const trimmedTranscript = transcriptText
+    ? transcriptText.trim().split(/\s+/).slice(0, 3000).join(' ')
+    : null
+
+  const userMessage = trimmedTranscript
+    ? `Here is a transcript of a Srila Prabhupada lecture (topic: "${topic}"):\n\n${trimmedTranscript}\n\nBased ONLY on what is actually said in this transcript, generate a quiz title and 5 multiple choice questions that test the listener's comprehension of the specific points, stories, instructions, and Sanskrit terms Prabhupada mentions in this lecture.`
+    : `Generate a quiz based on a Srila Prabhupada lecture about: "${topic}". Test philosophical understanding, Sanskrit terms, and practical instructions Prabhupada gives on this topic.`
+
   try {
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -185,10 +194,7 @@ app.post('/api/generate-quiz', requireAdmin, async (req, res) => {
   "title": string,
   "questions": [{"question": string, "options": [string,string,string,string], "correct": 0|1|2|3, "explanation": string}]
 }`,
-      messages: [{
-        role: 'user',
-        content: `Generate a quiz based on a Srila Prabhupada lecture about: "${topic}". Test philosophical understanding, Sanskrit terms, and practical instructions Prabhupada gives on this topic.`
-      }]
+      messages: [{ role: 'user', content: userMessage }]
     })
     const content = message.content[0].text.trim()
     const { title, questions } = extractQuizData(content)

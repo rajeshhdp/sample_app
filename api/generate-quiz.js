@@ -61,7 +61,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
 
-  const { blobUrl, blobPathname } = req.body || {}
+  const { blobUrl, blobPathname, transcriptText } = req.body || {}
   if (!blobUrl || !blobPathname) {
     return res.status(400).json({ error: 'blobUrl and blobPathname are required' })
   }
@@ -72,15 +72,21 @@ export default async function handler(req, res) {
   const topic = topicFromPathname(blobPathname)
   const client = new Anthropic({ apiKey })
 
+  // Trim transcript to ~3000 words to stay within token budget
+  const trimmedTranscript = transcriptText
+    ? transcriptText.trim().split(/\s+/).slice(0, 3000).join(' ')
+    : null
+
+  const userMessage = trimmedTranscript
+    ? `Here is a transcript of a Srila Prabhupada lecture (topic: "${topic}"):\n\n${trimmedTranscript}\n\nBased ONLY on what is actually said in this transcript, generate a quiz title and 5 multiple choice questions that test the listener's comprehension of the specific points, stories, instructions, and Sanskrit terms Prabhupada mentions in this lecture.`
+    : `Generate a quiz title and 5 quiz questions based on a Srila Prabhupada lecture about: "${topic}". The questions should test philosophical understanding, Sanskrit terms used, and practical instructions Prabhupada gives on this topic.`
+
   try {
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2048,
       system: SYSTEM_PROMPT,
-      messages: [{
-        role: 'user',
-        content: `Generate a quiz title and 5 quiz questions based on a Srila Prabhupada lecture about: "${topic}". The questions should test philosophical understanding, Sanskrit terms used, and practical instructions Prabhupada gives on this topic.`
-      }]
+      messages: [{ role: 'user', content: userMessage }]
     })
 
     const content = message.content[0].text.trim()
