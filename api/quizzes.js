@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import { readDB, writeDB, extractYoutubeId, checkAdmin } from './_db.js'
+import { readDB, writeDB, checkAdmin } from './_db.js'
 
 export default async function handler(req, res) {
   const { method } = req
@@ -8,17 +8,26 @@ export default async function handler(req, res) {
   // GET /api/quizzes or /api/quizzes/:id
   if (method === 'GET') {
     const db = await readDB()
+    const isAdmin = checkAdmin(req)
+
     if (id) {
-      const quiz = db.quizzes.find(q => q.id === id)
+      // Public or admin can fetch a single quiz by id
+      // Published-only guard for public users on single quiz fetch
+      const quiz = db.quizzes.find(q => q.id === id && (isAdmin || q.published))
       if (!quiz) return res.status(404).json({ error: 'Quiz not found' })
       return res.json(quiz)
     }
-    const quizzesWithStats = db.quizzes.map(quiz => {
+
+    // List: admins see all, public sees only published
+    const list = isAdmin ? db.quizzes : db.quizzes.filter(q => q.published)
+    const quizzesWithStats = list.map(quiz => {
       const responses = db.responses.filter(r => r.quizId === quiz.id)
       return {
         id: quiz.id,
         title: quiz.title,
-        youtubeId: quiz.youtubeId,
+        blobUrl: quiz.blobUrl,
+        blobPathname: quiz.blobPathname,
+        published: quiz.published,
         createdAt: quiz.createdAt,
         participantCount: responses.length,
         avgScore: responses.length
@@ -29,24 +38,22 @@ export default async function handler(req, res) {
     return res.json(quizzesWithStats)
   }
 
-  // POST /api/quizzes
+  // POST /api/quizzes — create new quiz (draft or published)
   if (method === 'POST') {
     if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
     try {
-      const { title, youtubeUrl, questions } = req.body || {}
-      if (!title || !youtubeUrl || !questions) {
-        return res.status(400).json({ error: 'Missing required fields' })
+      const { title, blobUrl, blobPathname, questions, published = false } = req.body || {}
+      if (!title || !blobUrl || !blobPathname || !questions) {
+        return res.status(400).json({ error: 'Missing required fields: title, blobUrl, blobPathname, questions' })
       }
-      const youtubeId = extractYoutubeId(youtubeUrl)
-      if (!youtubeId) return res.status(400).json({ error: 'Invalid YouTube URL' })
-
       const db = await readDB()
       const quiz = {
         id: nanoid(10),
         title,
-        youtubeUrl,
-        youtubeId,
+        blobUrl,
+        blobPathname,
         questions,
+        published: !!published,
         createdAt: new Date().toISOString()
       }
       db.quizzes.push(quiz)
@@ -58,7 +65,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // PUT /api/quizzes/:id
+  // PUT /api/quizzes/:id — update quiz (title, questions, published toggle)
   if (method === 'PUT') {
     if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
     try {

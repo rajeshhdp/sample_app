@@ -14,6 +14,7 @@ export default function Home() {
     fetch('/api/quizzes')
       .then(r => r.json())
       .then(data => {
+        // API returns only published quizzes for unauthenticated requests
         setQuizzes(Array.isArray(data) ? data : [])
         setLoading(false)
       })
@@ -22,7 +23,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
-      {/* Header */}
       <div className="bg-gradient-to-r from-orange-600 to-amber-500 text-white px-4 pt-12 pb-8">
         <div className="max-w-lg mx-auto text-center">
           <div className="text-4xl mb-2">🪷</div>
@@ -45,7 +45,7 @@ export default function Home() {
         {!loading && quizzes.length === 0 && (
           <div className="text-center py-16 text-gray-400">
             <div className="text-5xl mb-3">📿</div>
-            <p className="font-medium">No quizzes yet.</p>
+            <p className="font-medium">No quizzes available yet.</p>
             <p className="text-sm mt-1">Check back soon!</p>
           </div>
         )}
@@ -59,7 +59,10 @@ export default function Home() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-800 leading-snug mb-1 truncate">{quiz.title}</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-base">🎵</span>
+                    <h3 className="font-semibold text-gray-800 leading-snug truncate">{quiz.title}</h3>
+                  </div>
                   <p className="text-xs text-gray-400">{formatDate(quiz.createdAt)}</p>
                 </div>
                 <div className="flex-shrink-0 text-orange-500 text-xl mt-0.5">›</div>

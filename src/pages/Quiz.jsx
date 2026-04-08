@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import YoutubePlayer from '../components/YoutubePlayer.jsx'
+import AudioPlayer from '../components/AudioPlayer.jsx'
 import QuestionCard from '../components/QuestionCard.jsx'
 import ScoreScreen from '../components/ScoreScreen.jsx'
 
@@ -12,8 +12,7 @@ export default function Quiz() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Steps: 'name' | 'quiz' | 'result'
-  const [step, setStep] = useState('name')
+  const [step, setStep] = useState('name') // 'name' | 'quiz' | 'result'
   const [name, setName] = useState('')
   const [answers, setAnswers] = useState([])
   const [submitting, setSubmitting] = useState(false)
@@ -132,21 +131,11 @@ export default function Quiz() {
         {/* Quiz */}
         {step === 'quiz' && (
           <>
-            <YoutubePlayer youtubeId={quiz.youtubeId} />
+            <AudioPlayer src={quiz.blobUrl} title={quiz.title} />
+
             <div className="mt-4 mb-5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
               <p className="text-sm text-amber-800">
-                🎬 Watch the video above, then answer the questions below.
-              </p>
-              <p className="text-xs text-amber-700 mt-2">
-                If the video doesn't load,{' '}
-                <a
-                  href={`https://www.youtube.com/watch?v=${quiz.youtubeId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-amber-900"
-                >
-                  watch it on YouTube
-                </a>
+                🎧 Listen to the lecture above, then answer the questions below.
               </p>
             </div>
 
@@ -178,9 +167,7 @@ export default function Quiz() {
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Submitting...
                 </>
-              ) : (
-                'Submit Answers'
-              )}
+              ) : 'Submit Answers'}
             </button>
 
             {!allAnswered && (
