@@ -28,6 +28,12 @@ export default function Home() {
           <div className="text-4xl mb-2">🪷</div>
           <h1 className="text-3xl font-bold tracking-tight">Prabhupada Quiz</h1>
           <p className="text-orange-100 text-sm mt-1">Test your understanding of Srila Prabhupada's teachings</p>
+          <button
+            onClick={() => navigate('/leaderboard')}
+            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl text-sm transition-all border border-white/30"
+          >
+            🏆 Global Leaderboard
+          </button>
         </div>
       </div>
 

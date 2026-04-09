@@ -205,6 +205,44 @@ app.post('/api/generate-quiz', requireAdmin, async (req, res) => {
   }
 })
 
+// ── Global leaderboard ────────────────────────────────────────────────────
+app.get('/api/global-leaderboard', (req, res) => {
+  const db = readDB()
+  const publishedIds = new Set(db.quizzes.filter(q => q.published).map(q => q.id))
+  const responses = db.responses.filter(r => publishedIds.has(r.quizId))
+
+  const userMap = {}
+  for (const r of responses) {
+    const key = r.name.trim().toLowerCase()
+    if (!userMap[key]) userMap[key] = { name: r.name.trim(), attempts: [], quizzesSeen: new Set() }
+    userMap[key].attempts.push(Math.round((r.score / r.totalQuestions) * 100))
+    userMap[key].quizzesSeen.add(r.quizId)
+  }
+
+  const players = Object.values(userMap).map(u => ({
+    name: u.name,
+    quizzesAttempted: u.quizzesSeen.size,
+    totalAttempts: u.attempts.length,
+    avgScore: Math.round(u.attempts.reduce((s, v) => s + v, 0) / u.attempts.length),
+    bestScore: Math.max(...u.attempts)
+  }))
+
+  players.sort((a, b) =>
+    b.avgScore !== a.avgScore ? b.avgScore - a.avgScore
+      : b.quizzesAttempted !== a.quizzesAttempted ? b.quizzesAttempted - a.quizzesAttempted
+        : a.name.localeCompare(b.name)
+  )
+
+  let rank = 1
+  for (let i = 0; i < players.length; i++) {
+    if (i > 0 && (players[i].avgScore !== players[i - 1].avgScore ||
+      players[i].quizzesAttempted !== players[i - 1].quizzesAttempted)) rank = i + 1
+    players[i].rank = rank
+  }
+
+  res.json({ players, totalPlayers: players.length, totalAttempts: responses.length })
+})
+
 // ── Responses ─────────────────────────────────────────────────────────────
 app.get('/api/responses/:quizId', (req, res) => {
   const db = readDB()
