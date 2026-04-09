@@ -88,6 +88,7 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
         body: JSON.stringify({
           blobUrl: blob.url,
           blobPathname: blob.pathname,
+          transcriptUrl: blob.transcriptUrl || undefined,
           transcriptText: transcript.trim() || undefined
         })
       })
@@ -169,6 +170,9 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
           <p className="font-semibold text-gray-800 text-sm leading-snug truncate">{displayName}</p>
           <p className="text-xs text-gray-400 truncate">
             {blob.pathname.split('/').pop()} · {formatSize(blob.size)}
+            {blob.transcriptUrl && (
+              <span className="ml-1.5 text-green-600 font-semibold">· 📄 transcript</span>
+            )}
           </p>
         </div>
       </div>
@@ -179,23 +183,28 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
         {!quiz && !draft && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <button
-                onClick={() => setShowTranscript(s => !s)}
-                className="text-xs text-orange-500 hover:text-orange-700 underline"
-              >
-                {showTranscript ? '▲ Hide transcript' : '▼ Add transcript (optional)'}
-              </button>
+              {!blob.transcriptUrl && (
+                <button
+                  onClick={() => setShowTranscript(s => !s)}
+                  className="text-xs text-orange-500 hover:text-orange-700 underline"
+                >
+                  {showTranscript ? '▲ Hide transcript' : '▼ Add transcript (optional)'}
+                </button>
+              )}
+              {blob.transcriptUrl && (
+                <span className="text-xs text-green-600">Will use transcript file</span>
+              )}
               <button
                 onClick={handleGenerate}
                 disabled={generating}
-                className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-orange-500 to-amber-400 text-white text-sm font-semibold rounded-xl disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-orange-500 to-amber-400 text-white text-sm font-semibold rounded-xl disabled:opacity-50 ml-auto"
               >
                 {generating
                   ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> Generating...</>
                   : '✨ Generate Quiz'}
               </button>
             </div>
-            {showTranscript && (
+            {!blob.transcriptUrl && showTranscript && (
               <textarea
                 className="w-full p-2 border border-orange-200 rounded-xl text-xs resize-none focus:outline-none focus:border-orange-400 bg-white mt-1"
                 rows={5}
@@ -204,8 +213,8 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
                 onChange={e => setTranscript(e.target.value)}
               />
             )}
-            {!quiz && !draft && !showTranscript && (
-              <p className="text-xs text-gray-400 italic">No quiz yet</p>
+            {!blob.transcriptUrl && !showTranscript && (
+              <p className="text-xs text-gray-400 italic">No quiz yet · no transcript file</p>
             )}
           </div>
         )}
@@ -307,7 +316,7 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
                 {deleting ? '...' : 'Delete'}
               </button>
             </div>
-            {showTranscript && (
+            {!blob.transcriptUrl && showTranscript && (
               <textarea
                 className="w-full mt-2 p-2 border border-blue-200 rounded-xl text-xs resize-none focus:outline-none focus:border-blue-400 bg-white"
                 rows={4}
@@ -319,13 +328,16 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
             <div className="flex items-center gap-2 mt-1.5">
               <p className="text-xs text-gray-400 flex-1">
                 {quiz.participantCount} participant{quiz.participantCount !== 1 ? 's' : ''} · created {formatDate(quiz.createdAt)}
+                {blob.transcriptUrl && <span className="ml-1 text-green-600"> · 📄 transcript</span>}
               </p>
-              <button
-                onClick={() => setShowTranscript(s => !s)}
-                className="text-xs text-blue-400 hover:text-blue-600 underline"
-              >
-                {showTranscript ? 'Hide transcript' : 'Add transcript'}
-              </button>
+              {!blob.transcriptUrl && (
+                <button
+                  onClick={() => setShowTranscript(s => !s)}
+                  className="text-xs text-blue-400 hover:text-blue-600 underline"
+                >
+                  {showTranscript ? 'Hide transcript' : 'Add transcript'}
+                </button>
+              )}
             </div>
           </div>
         )}

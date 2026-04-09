@@ -61,7 +61,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
 
-  const { blobUrl, blobPathname, transcriptText } = req.body || {}
+  const { blobUrl, blobPathname, transcriptUrl, transcriptText } = req.body || {}
   if (!blobUrl || !blobPathname) {
     return res.status(400).json({ error: 'blobUrl and blobPathname are required' })
   }
@@ -72,9 +72,18 @@ export default async function handler(req, res) {
   const topic = topicFromPathname(blobPathname)
   const client = new Anthropic({ apiKey })
 
-  // Trim transcript to ~3000 words to stay within token budget
-  const trimmedTranscript = transcriptText
-    ? transcriptText.trim().split(/\s+/).slice(0, 3000).join(' ')
+  // Resolve transcript: manual text > blob txt file > none
+  let resolvedTranscript = transcriptText ? transcriptText.trim() : null
+  if (!resolvedTranscript && transcriptUrl) {
+    try {
+      const txtRes = await fetch(transcriptUrl)
+      if (txtRes.ok) resolvedTranscript = (await txtRes.text()).trim()
+    } catch { /* fall through to topic-only */ }
+  }
+
+  // Trim to ~3000 words to stay within token budget
+  const trimmedTranscript = resolvedTranscript
+    ? resolvedTranscript.split(/\s+/).slice(0, 3000).join(' ')
     : null
 
   const userMessage = trimmedTranscript

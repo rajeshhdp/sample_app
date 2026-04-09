@@ -11,14 +11,26 @@ export default async function handler(req, res) {
 
   try {
     const { blobs } = await list()
+
+    // Build a lookup: base pathname (no extension) → txt blob url
+    const txtByBase = {}
+    blobs
+      .filter(b => /\.txt$/i.test(b.pathname))
+      .forEach(b => { txtByBase[b.pathname.replace(/\.txt$/i, '')] = b.url })
+
     const audioBlobs = blobs
       .filter(b => /\.(mp3|m4a|wav|ogg)$/i.test(b.pathname))
-      .map(b => ({
-        url: b.url,
-        pathname: b.pathname,
-        size: b.size,
-        uploadedAt: b.uploadedAt
-      }))
+      .map(b => {
+        const base = b.pathname.replace(/\.(mp3|m4a|wav|ogg)$/i, '')
+        const transcriptUrl = txtByBase[base] || null
+        return {
+          url: b.url,
+          pathname: b.pathname,
+          size: b.size,
+          uploadedAt: b.uploadedAt,
+          transcriptUrl
+        }
+      })
     res.json(audioBlobs)
   } catch (err) {
     res.status(500).json({ error: 'Failed to list blobs: ' + err.message })
