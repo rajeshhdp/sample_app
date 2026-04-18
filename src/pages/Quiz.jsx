@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import AudioPlayer from '../components/AudioPlayer.jsx'
 import QuestionCard from '../components/QuestionCard.jsx'
 import ScoreScreen from '../components/ScoreScreen.jsx'
+import { PrabhupadaLogoWithFallback } from '../components/PrabhupadaLogo.jsx'
 
 export default function Quiz() {
   const { id } = useParams()
@@ -91,8 +92,8 @@ export default function Quiz() {
           <button onClick={() => navigate('/')} className="text-white/80 hover:text-white text-xl">‹</button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-lg">🪷</span>
-              <span className="font-bold text-base truncate">Prabhupada Quiz</span>
+              <PrabhupadaLogoWithFallback size="sm" />
+              <span className="font-bold text-base truncate">Srila Prabhupada Quiz</span>
             </div>
             <p className="text-orange-100 text-xs truncate">{quiz.title}</p>
           </div>

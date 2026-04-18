@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import LeaderboardChart from '../components/LeaderboardChart.jsx'
+import { PrabhupadaLogoWithFallback } from '../components/PrabhupadaLogo.jsx'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -62,8 +63,8 @@ export default function Leaderboard() {
         <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3 mb-3">
             <button onClick={() => navigate(`/quiz/${id}`)} className="text-white/80 hover:text-white text-xl">‹</button>
-            <span className="text-lg">🪷</span>
-            <span className="font-bold">Prabhupada Quiz</span>
+            <PrabhupadaLogoWithFallback size="sm" />
+            <span className="font-bold">Srila Prabhupada Quiz</span>
           </div>
           <div className="bg-white/20 rounded-2xl p-4">
             <h1 className="text-lg font-bold leading-snug">{quiz?.title}</h1>

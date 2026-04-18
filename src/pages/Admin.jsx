@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { PrabhupadaLogoWithFallback } from '../components/PrabhupadaLogo.jsx'
 
 const LABELS = ['A', 'B', 'C', 'D']
 
@@ -372,9 +373,11 @@ function LoginScreen({ onLogin }) {
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
         <div className="text-center mb-6">
-          <div className="text-4xl mb-2">🪷</div>
+          <div className="flex justify-center mb-3">
+            <PrabhupadaLogoWithFallback size="lg" />
+          </div>
           <h1 className="text-xl font-bold text-gray-800">Admin Login</h1>
-          <p className="text-sm text-gray-500 mt-1">Prabhupada Quiz Manager</p>
+          <p className="text-sm text-gray-500 mt-1">Srila Prabhupada Quiz Manager</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
@@ -451,9 +454,10 @@ export default function Admin() {
       <div className="bg-gradient-to-r from-orange-600 to-amber-500 text-white px-4 pt-10 pb-6">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           <button onClick={() => navigate('/')} className="text-white/80 hover:text-white text-xl">‹</button>
+          <PrabhupadaLogoWithFallback size="sm" />
           <div className="flex-1">
             <h1 className="text-xl font-bold">Admin Panel</h1>
-            <p className="text-orange-100 text-xs">Manage audio quizzes</p>
+            <p className="text-orange-100 text-xs">Srila Prabhupada Quiz Manager</p>
           </div>
           <button
             onClick={() => loadData()}

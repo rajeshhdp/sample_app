@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { PrabhupadaLogoWithFallback } from '../components/PrabhupadaLogo.jsx'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -46,8 +47,8 @@ export default function GlobalLeaderboard() {
         <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3 mb-4">
             <button onClick={() => navigate('/')} className="text-white/80 hover:text-white text-xl">‹</button>
-            <span className="text-lg">🪷</span>
-            <span className="font-bold">Prabhupada Quiz</span>
+            <PrabhupadaLogoWithFallback size="sm" />
+            <span className="font-bold">Srila Prabhupada Quiz</span>
           </div>
           <div className="bg-white/20 rounded-2xl p-4">
             <h1 className="text-xl font-bold">🏆 Global Leaderboard</h1>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { PrabhupadaLogoWithFallback } from '../components/PrabhupadaLogo.jsx'
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -25,8 +26,10 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
       <div className="bg-gradient-to-r from-orange-600 to-amber-500 text-white px-4 pt-12 pb-8">
         <div className="max-w-lg mx-auto text-center">
-          <div className="text-4xl mb-2">🪷</div>
-          <h1 className="text-3xl font-bold tracking-tight">Prabhupada Quiz</h1>
+          <div className="flex justify-center mb-3">
+            <PrabhupadaLogoWithFallback size="lg" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight">Srila Prabhupada Quiz</h1>
           <p className="text-orange-100 text-sm mt-1">Test your understanding of Srila Prabhupada's teachings</p>
           <button
             onClick={() => navigate('/leaderboard')}
