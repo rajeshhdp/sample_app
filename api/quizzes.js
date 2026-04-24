@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
 import { readDB, writeDB, checkAdmin } from './_db.js'
+import { del } from '@vercel/blob'
 
 export default async function handler(req, res) {
   const { method } = req
@@ -85,6 +86,19 @@ export default async function handler(req, res) {
     if (!checkAdmin(req)) return res.status(401).json({ error: 'Unauthorized' })
     try {
       const db = await readDB()
+      const quiz = db.quizzes.find(q => q.id === id)
+
+      // Delete audio + transcript from Vercel Blob when requested
+      if (req.query?.deleteBlob === 'true' && quiz?.blobUrl) {
+        try {
+          const urls = [
+            quiz.blobUrl,
+            quiz.blobUrl.replace(/\.(mp3|m4a|wav|ogg)$/i, '.txt')
+          ]
+          await del(urls)
+        } catch { /* blob may already be gone — continue with DB cleanup */ }
+      }
+
       db.quizzes = db.quizzes.filter(q => q.id !== id)
       db.responses = db.responses.filter(r => r.quizId !== id)
       await writeDB(db)

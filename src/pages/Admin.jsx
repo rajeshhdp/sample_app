@@ -150,7 +150,7 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
     if (!quiz || !confirm(`Delete quiz "${quiz.title}"?`)) return
     setDeleting(true)
     try {
-      await fetch(`/api/quizzes/${quiz.id}`, {
+      await fetch(`/api/quizzes/${quiz.id}?deleteBlob=true`, {
         method: 'DELETE',
         headers: { 'x-admin-password': password }
       })
