@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 
-export default function AudioPlayer({ src, title }) {
+export default function AudioPlayer({ src, title, onProgress }) {
   const audioRef = useRef(null)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -68,11 +68,14 @@ export default function AudioPlayer({ src, title }) {
         preload="metadata"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); onProgress?.(duration, duration) }}
         onLoadedMetadata={e => setDuration(e.target.duration)}
         onTimeUpdate={e => {
           const a = e.target
-          if (a.duration) setProgress((a.currentTime / a.duration) * 100)
+          if (a.duration) {
+            setProgress((a.currentTime / a.duration) * 100)
+            onProgress?.(a.currentTime, a.duration)
+          }
         }}
       />
     </div>
