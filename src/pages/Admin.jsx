@@ -60,8 +60,98 @@ function QuestionEditor({ question, index, onChange }) {
   )
 }
 
+// ── Generate controls (level + model + transcript) ───────────────────────
+function modelLabel(id) {
+  return (id.split('/').pop() || id).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function GenerateControls({
+  level, setLevel, selectedModel, setSelectedModel, models,
+  showTranscript, setShowTranscript, hasTranscriptFile,
+  transcript, setTranscript, generating, onGenerate, regenMode = false
+}) {
+  return (
+    <div className="space-y-2">
+      {/* Level toggle */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-500 font-medium w-12 flex-shrink-0">Level</span>
+        <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs font-semibold">
+          <button
+            onClick={() => setLevel('basic')}
+            className={`px-3 py-1.5 transition-colors ${level === 'basic' ? 'bg-orange-500 text-white' : 'bg-white text-gray-500 hover:bg-orange-50'}`}
+          >
+            Basic
+          </button>
+          <button
+            onClick={() => setLevel('advanced')}
+            className={`px-3 py-1.5 border-l border-gray-200 transition-colors ${level === 'advanced' ? 'bg-purple-600 text-white' : 'bg-white text-gray-500 hover:bg-purple-50'}`}
+          >
+            Advanced
+          </button>
+        </div>
+        <span className="text-xs text-gray-400 italic">
+          {level === 'basic' ? 'recall & comprehension' : 'in-depth philosophy'}
+        </span>
+      </div>
+
+      {/* Model selector — only when multiple models available */}
+      {models.length > 1 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 font-medium w-12 flex-shrink-0">Model</span>
+          <select
+            value={selectedModel}
+            onChange={e => setSelectedModel(e.target.value)}
+            className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-orange-400 bg-white"
+          >
+            {models.map(m => (
+              <option key={m} value={m}>{modelLabel(m)}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Transcript + generate row */}
+      <div className="flex items-center gap-2">
+        {!hasTranscriptFile ? (
+          <button
+            onClick={() => setShowTranscript(s => !s)}
+            className="text-xs text-orange-500 hover:text-orange-700 underline flex-1"
+          >
+            {showTranscript ? '▲ Hide transcript' : '▼ Add transcript (optional)'}
+          </button>
+        ) : (
+          <span className="text-xs text-green-600 flex-1">Will use transcript file</span>
+        )}
+        <button
+          onClick={onGenerate}
+          disabled={generating}
+          className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-orange-500 to-amber-400 text-white text-xs font-semibold rounded-xl disabled:opacity-50"
+        >
+          {generating
+            ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> Generating...</>
+            : regenMode ? '↺ Regenerate' : '✨ Generate Quiz'}
+        </button>
+      </div>
+
+      {!hasTranscriptFile && showTranscript && (
+        <textarea
+          className="w-full p-2 border border-orange-200 rounded-xl text-xs resize-none focus:outline-none focus:border-orange-400 bg-white"
+          rows={4}
+          placeholder="Paste the lecture transcript here so questions match the actual audio content..."
+          value={transcript}
+          onChange={e => setTranscript(e.target.value)}
+        />
+      )}
+
+      {!hasTranscriptFile && !showTranscript && !regenMode && (
+        <p className="text-xs text-gray-400 italic">No quiz yet · no transcript file</p>
+      )}
+    </div>
+  )
+}
+
 // ── Blob card ─────────────────────────────────────────────────────────────
-function BlobCard({ blob, quiz, password, onRefresh }) {
+function BlobCard({ blob, quiz, password, onRefresh, models }) {
   const navigate = useNavigate()
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
@@ -71,6 +161,8 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
   const [deleting, setDeleting] = useState(false)
   const [showTranscript, setShowTranscript] = useState(false)
   const [transcript, setTranscript] = useState('')
+  const [level, setLevel] = useState('basic')
+  const [selectedModel, setSelectedModel] = useState(models[0] || '')
 
   const displayName = blob.pathname
     .split('/').pop()
@@ -90,7 +182,9 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
           blobUrl: blob.url,
           blobPathname: blob.pathname,
           transcriptUrl: blob.transcriptUrl || undefined,
-          transcriptText: transcript.trim() || undefined
+          transcriptText: transcript.trim() || undefined,
+          model: selectedModel || undefined,
+          level
         })
       })
       const text = await res.text()
@@ -183,40 +277,15 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
         {/* No quiz yet */}
         {!quiz && !draft && (
           <div>
-            <div className="flex items-center justify-between mb-2">
-              {!blob.transcriptUrl && (
-                <button
-                  onClick={() => setShowTranscript(s => !s)}
-                  className="text-xs text-orange-500 hover:text-orange-700 underline"
-                >
-                  {showTranscript ? '▲ Hide transcript' : '▼ Add transcript (optional)'}
-                </button>
-              )}
-              {blob.transcriptUrl && (
-                <span className="text-xs text-green-600">Will use transcript file</span>
-              )}
-              <button
-                onClick={handleGenerate}
-                disabled={generating}
-                className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-orange-500 to-amber-400 text-white text-sm font-semibold rounded-xl disabled:opacity-50 ml-auto"
-              >
-                {generating
-                  ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> Generating...</>
-                  : '✨ Generate Quiz'}
-              </button>
-            </div>
-            {!blob.transcriptUrl && showTranscript && (
-              <textarea
-                className="w-full p-2 border border-orange-200 rounded-xl text-xs resize-none focus:outline-none focus:border-orange-400 bg-white mt-1"
-                rows={5}
-                placeholder="Paste the lecture transcript here so questions match the actual audio content..."
-                value={transcript}
-                onChange={e => setTranscript(e.target.value)}
-              />
-            )}
-            {!blob.transcriptUrl && !showTranscript && (
-              <p className="text-xs text-gray-400 italic">No quiz yet · no transcript file</p>
-            )}
+            <GenerateControls
+              level={level} setLevel={setLevel}
+              selectedModel={selectedModel} setSelectedModel={setSelectedModel}
+              models={models}
+              showTranscript={showTranscript} setShowTranscript={setShowTranscript}
+              hasTranscriptFile={!!blob.transcriptUrl}
+              transcript={transcript} setTranscript={setTranscript}
+              generating={generating} onGenerate={handleGenerate}
+            />
           </div>
         )}
 
@@ -303,13 +372,6 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
                 🏅 Scores
               </button>
               <button
-                onClick={handleGenerate}
-                disabled={generating}
-                className="px-3 py-1.5 text-xs font-semibold rounded-xl border-2 border-blue-200 text-blue-600 hover:bg-blue-50"
-              >
-                {generating ? '...' : '↺ Regen'}
-              </button>
-              <button
                 onClick={handleDeleteQuiz}
                 disabled={deleting}
                 className="px-3 py-1.5 text-xs font-semibold rounded-xl border-2 border-red-200 text-red-500 hover:bg-red-50"
@@ -317,29 +379,26 @@ function BlobCard({ blob, quiz, password, onRefresh }) {
                 {deleting ? '...' : 'Delete'}
               </button>
             </div>
-            {!blob.transcriptUrl && showTranscript && (
-              <textarea
-                className="w-full mt-2 p-2 border border-blue-200 rounded-xl text-xs resize-none focus:outline-none focus:border-blue-400 bg-white"
-                rows={4}
-                placeholder="Paste transcript for more accurate regeneration..."
-                value={transcript}
-                onChange={e => setTranscript(e.target.value)}
-              />
-            )}
-            <div className="flex items-center gap-2 mt-1.5">
-              <p className="text-xs text-gray-400 flex-1">
-                {quiz.participantCount} participant{quiz.participantCount !== 1 ? 's' : ''} · created {formatDate(quiz.createdAt)}
-                {blob.transcriptUrl && <span className="ml-1 text-green-600"> · 📄 transcript</span>}
-              </p>
-              {!blob.transcriptUrl && (
-                <button
-                  onClick={() => setShowTranscript(s => !s)}
-                  className="text-xs text-blue-400 hover:text-blue-600 underline"
-                >
-                  {showTranscript ? 'Hide transcript' : 'Add transcript'}
-                </button>
-              )}
-            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              {quiz.participantCount} participant{quiz.participantCount !== 1 ? 's' : ''} · created {formatDate(quiz.createdAt)}
+              {blob.transcriptUrl && <span className="ml-1 text-green-600"> · 📄 transcript</span>}
+            </p>
+            {/* Regen options */}
+            <details className="mt-2">
+              <summary className="text-xs text-blue-400 cursor-pointer hover:text-blue-600">↺ Regenerate options</summary>
+              <div className="mt-2">
+                <GenerateControls
+                  level={level} setLevel={setLevel}
+                  selectedModel={selectedModel} setSelectedModel={setSelectedModel}
+                  models={models}
+                  showTranscript={showTranscript} setShowTranscript={setShowTranscript}
+                  hasTranscriptFile={!!blob.transcriptUrl}
+                  transcript={transcript} setTranscript={setTranscript}
+                  generating={generating} onGenerate={handleGenerate}
+                  regenMode
+                />
+              </div>
+            </details>
           </div>
         )}
       </div>
@@ -407,6 +466,7 @@ export default function Admin() {
   const [authed, setAuthed] = useState(false)
   const [blobs, setBlobs] = useState([])
   const [quizzes, setQuizzes] = useState([])
+  const [models, setModels] = useState([])
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const navigate = useNavigate()
@@ -416,13 +476,17 @@ export default function Admin() {
     setLoading(true)
     setLoadError('')
     try {
-      const [blobsRes, quizzesRes] = await Promise.all([
+      const [blobsRes, quizzesRes, modelsRes] = await Promise.all([
         fetch('/api/blobs', { headers: { 'x-admin-password': pw } }),
-        fetch('/api/quizzes', { headers: { 'x-admin-password': pw } })
+        fetch('/api/quizzes', { headers: { 'x-admin-password': pw } }),
+        fetch('/api/models', { headers: { 'x-admin-password': pw } })
       ])
-      const [blobsData, quizzesData] = await Promise.all([blobsRes.json(), quizzesRes.json()])
+      const [blobsData, quizzesData, modelsData] = await Promise.all([
+        blobsRes.json(), quizzesRes.json(), modelsRes.json()
+      ])
       setBlobs(Array.isArray(blobsData) ? blobsData : [])
       setQuizzes(Array.isArray(quizzesData) ? quizzesData : [])
+      setModels(Array.isArray(modelsData) ? modelsData : [])
     } catch {
       setLoadError('Failed to load data. Check your connection.')
     } finally {
@@ -507,6 +571,7 @@ export default function Admin() {
                   blob={blob}
                   quiz={quizzes.find(q => q.blobPathname === blob.pathname) || null}
                   password={password}
+                  models={models}
                   onRefresh={() => loadData()}
                 />
               ))}

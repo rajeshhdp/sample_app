@@ -3,7 +3,6 @@ import cors from 'cors'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import Anthropic from '@anthropic-ai/sdk'
 import { nanoid } from 'nanoid'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -164,41 +163,74 @@ app.delete('/api/quizzes/:id', requireAdmin, (req, res) => {
   res.json({ success: true })
 })
 
+// ── Models ────────────────────────────────────────────────────────────────
+app.get('/api/models', requireAdmin, (req, res) => {
+  const models = (process.env.OPENROUTER_MODELS || '')
+    .split(',').map(m => m.trim()).filter(Boolean)
+  res.json(models)
+})
+
 // ── Generate quiz ─────────────────────────────────────────────────────────
+const SYSTEM_PROMPTS_LOCAL = {
+  basic: `You are a Vaishnava education assistant. Generate a quiz title and 5 multiple choice questions at a BASIC level that test recall and comprehension of Srila Prabhupada's lecture. Focus on: key statements made, Sanskrit terms defined, specific instructions given, and stories or examples mentioned. Each question must be directly answerable from having listened carefully. Each question must have 4 options (A, B, C, D) with exactly one correct answer. Return ONLY a valid JSON object: {"title": string, "questions": [{"question": string, "options": [string,string,string,string], "correct": 0|1|2|3, "explanation": string}]}`,
+  advanced: `You are a Vaishnava education assistant. Generate a quiz title and 5 multiple choice questions at an ADVANCED level testing in-depth philosophical understanding. Focus on: underlying principles, subtle distinctions, connections to broader Vaishnava philosophy, the 'why' behind Prabhupada's reasoning, nuances requiring study of his books. Each question must have 4 options (A, B, C, D) with exactly one correct answer. Return ONLY a valid JSON object: {"title": string, "questions": [{"question": string, "options": [string,string,string,string], "correct": 0|1|2|3, "explanation": string}]}`
+}
+
 app.post('/api/generate-quiz', requireAdmin, async (req, res) => {
-  const { blobUrl, blobPathname } = req.body
+  const { blobUrl, blobPathname, transcriptUrl, transcriptText, model, level = 'basic' } = req.body
   if (!blobUrl || !blobPathname) {
     return res.status(400).json({ error: 'blobUrl and blobPathname are required' })
   }
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) return res.status(500).json({ error: 'OPENROUTER_API_KEY not configured' })
+
+  const availableModels = (process.env.OPENROUTER_MODELS || '')
+    .split(',').map(m => m.trim()).filter(Boolean)
+  const selectedModel = (model && availableModels.includes(model))
+    ? model
+    : (availableModels[0] || 'anthropic/claude-haiku-4-5')
 
   const topic = topicFromPathname(blobPathname)
-  const client = new Anthropic({ apiKey })
+  const systemPrompt = SYSTEM_PROMPTS_LOCAL[level] || SYSTEM_PROMPTS_LOCAL.basic
 
-  const { transcriptText } = req.body
-  const trimmedTranscript = transcriptText
-    ? transcriptText.trim().split(/\s+/).slice(0, 3000).join(' ')
+  let resolvedTranscript = transcriptText ? transcriptText.trim() : null
+  if (!resolvedTranscript && transcriptUrl) {
+    try {
+      const txtRes = await fetch(transcriptUrl)
+      if (txtRes.ok) resolvedTranscript = (await txtRes.text()).trim()
+    } catch { /* fall through */ }
+  }
+  const trimmedTranscript = resolvedTranscript
+    ? resolvedTranscript.split(/\s+/).slice(0, 3000).join(' ')
     : null
 
   const userMessage = trimmedTranscript
-    ? `Here is a transcript of a Srila Prabhupada lecture (topic: "${topic}"):\n\n${trimmedTranscript}\n\nBased ONLY on what is actually said in this transcript, generate a quiz title and 5 multiple choice questions that test the listener's comprehension of the specific points, stories, instructions, and Sanskrit terms Prabhupada mentions in this lecture.`
-    : `Generate a quiz based on a Srila Prabhupada lecture about: "${topic}". Test philosophical understanding, Sanskrit terms, and practical instructions Prabhupada gives on this topic.`
+    ? `Here is a transcript of a Srila Prabhupada lecture (topic: "${topic}"):\n\n${trimmedTranscript}\n\nBased ONLY on what is actually said in this transcript, generate a quiz title and 5 questions at the ${level} level.`
+    : `Generate a quiz title and 5 questions at the ${level} level based on a Srila Prabhupada lecture about: "${topic}".`
 
   try {
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      system: `You are a Vaishnava education assistant helping devotees understand Srila Prabhupada's teachings. Given a lecture topic, generate a quiz title and 5 multiple choice questions. Each question must have 4 options (A, B, C, D) with exactly one correct answer. Return ONLY a valid JSON object:
-{
-  "title": string,
-  "questions": [{"question": string, "options": [string,string,string,string], "correct": 0|1|2|3, "explanation": string}]
-}`,
-      messages: [{ role: 'user', content: userMessage }]
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'X-Title': 'Srila Prabhupada Quiz'
+      },
+      body: JSON.stringify({
+        model: selectedModel,
+        max_tokens: 2048,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ]
+      })
     })
-    const content = message.content[0].text.trim()
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error?.message || `OpenRouter error ${response.status}`)
+    const content = data.choices?.[0]?.message?.content?.trim()
+    if (!content) throw new Error('Empty response from model')
     const { title, questions } = extractQuizData(content)
-    res.json({ title: title || topic, questions })
+    res.json({ title: title || topic, questions, model: selectedModel, level })
   } catch (err) {
     console.error('Generate error:', err)
     res.status(500).json({ error: 'Failed to generate quiz: ' + err.message })
