@@ -19,17 +19,6 @@ export default function Quiz() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
 
-  // Audio gate: track the furthest point reached (rewinding won't reset it)
-  const [maxFraction, setMaxFraction] = useState(0)
-  const UNLOCK_THRESHOLD = 0.9 // 90% of audio must be reached
-  const audioUnlocked = maxFraction >= UNLOCK_THRESHOLD
-
-  function handleAudioProgress(currentTime, duration) {
-    if (!duration) return
-    const fraction = currentTime / duration
-    setMaxFraction(prev => Math.max(prev, fraction))
-  }
-
   const startTimeRef = useRef(null)
 
   useEffect(() => {
@@ -143,71 +132,50 @@ export default function Quiz() {
         {/* Quiz */}
         {step === 'quiz' && (
           <>
-            <AudioPlayer src={quiz.blobUrl} title={quiz.title} onProgress={handleAudioProgress} />
+            <AudioPlayer src={quiz.blobUrl} title={quiz.title} />
 
-            {/* Listening progress gate */}
-            {!audioUnlocked && (
-              <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                <p className="text-sm text-amber-800 font-medium text-center mb-3">
-                  🎧 Listen to the lecture to unlock the questions
-                </p>
-                <div className="w-full bg-amber-100 rounded-full h-2.5 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.round(maxFraction * 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-amber-600 text-center mt-2">
-                  {Math.round(maxFraction * 100)}% listened · {Math.round(UNLOCK_THRESHOLD * 100)}% required to unlock
-                </p>
-              </div>
-            )}
-
-            {audioUnlocked && (
-              <div className="mt-4 mb-5 p-3 bg-green-50 border border-green-200 rounded-xl text-center">
-                <p className="text-sm text-green-700 font-medium">✅ Questions unlocked — answer below</p>
-              </div>
-            )}
-
-            {/* Questions — only interactive when unlocked */}
-            <div className={`mt-4 transition-opacity duration-500 ${audioUnlocked ? 'opacity-100' : 'opacity-30 pointer-events-none select-none'}`}>
-              {quiz.questions.map((q, i) => (
-                <QuestionCard
-                  key={i}
-                  question={q}
-                  index={i}
-                  selected={answers[i]}
-                  onSelect={val => {
-                    const next = [...answers]
-                    next[i] = val
-                    setAnswers(next)
-                  }}
-                />
-              ))}
-
-              <div className="mt-2 mb-2 text-center text-xs text-gray-400">
-                {answers.filter(a => a !== -1).length} of {quiz.questions.length} answered
-              </div>
-
-              <button
-                onClick={handleSubmit}
-                disabled={!allAnswered || submitting || !audioUnlocked}
-                className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-400 text-white font-bold rounded-xl text-lg shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                {submitting ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Submitting...
-                  </>
-                ) : 'Submit Answers'}
-              </button>
-
-              {audioUnlocked && !allAnswered && (
-                <p className="text-center text-xs text-gray-400 mt-2">
-                  Please answer all questions to submit.
-                </p>
-              )}
+            <div className="mt-4 mb-5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
+              <p className="text-sm text-amber-800">
+                🎧 Listen to the lecture above, then answer the questions below.
+              </p>
             </div>
+
+            {quiz.questions.map((q, i) => (
+              <QuestionCard
+                key={i}
+                question={q}
+                index={i}
+                selected={answers[i]}
+                onSelect={val => {
+                  const next = [...answers]
+                  next[i] = val
+                  setAnswers(next)
+                }}
+              />
+            ))}
+
+            <div className="mt-2 mb-2 text-center text-xs text-gray-400">
+              {answers.filter(a => a !== -1).length} of {quiz.questions.length} answered
+            </div>
+
+            <button
+              onClick={handleSubmit}
+              disabled={!allAnswered || submitting}
+              className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-400 text-white font-bold rounded-xl text-lg shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Submitting...
+                </>
+              ) : 'Submit Answers'}
+            </button>
+
+            {!allAnswered && (
+              <p className="text-center text-xs text-gray-400 mt-2">
+                Please answer all questions to submit.
+              </p>
+            )}
           </>
         )}
 
